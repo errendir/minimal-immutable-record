@@ -25,6 +25,13 @@ const commonRecordTest = (Record) => {
     expect(instance1.get("a")).to.equal(14)
   })
 
+  it("should correctly handle default values for records with only one field", () => {
+    const RecordClass = Record({ a: null })
+    const instance1 = new RecordClass({})
+
+    expect(instance1.get("a")).to.equal(null)
+  })
+
   it("should ignore additional fields when creating a record instance", () => {
     const RecordClass = Record({ a: null })
     const instance1 = new RecordClass({ c: 13 })
