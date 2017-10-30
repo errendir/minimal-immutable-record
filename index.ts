@@ -38,7 +38,9 @@ export function Record<Shape>(defaultValues: Shape): RecordClass<Shape> {
     },
     set<K extends keyof Shape>(this: ThinRecordInstance<Shape>, key: K, value: Shape[K]): RecordInstance<Shape> {
       // Convert to full trie record instance
-      return (TrieRecordClass(this.values)).set(key, value)
+      const instance = TrieRecordClass(this.values);
+      (TrieRecordClass as any)._putKeyValueIntoTrie(instance, key, value)
+      return instance
     }
   }
 
@@ -123,7 +125,7 @@ export function TrieRecord<Shape>(defaultValues: Shape): RecordClass<Shape> {
 
   defineRecordGetters<Shape>(Object.keys(defaultValues) as any, TrieRecordPrototype)
 
-  function createTrieRecordInstance(this: any, values: Partial<Shape>) {
+  function createTrieRecordInstance(this: any, values?: Partial<Shape>) {
     if(!(this instanceof createTrieRecordInstance)) {
       return new (createTrieRecordInstance as any)(values)
     }
@@ -144,27 +146,33 @@ export function TrieRecord<Shape>(defaultValues: Shape): RecordClass<Shape> {
 
     this.tree = {}
     initializeTheLevel(numberOfLevels, this.tree)
-
-    for(const [key, value] of Object.entries(values)) {
-      let hash = keyHashes[key as keyof Shape]
-      let tree = this.tree
-      let previousTree: TrieNode<Shape> | null = null
-      let previousHash: number | null = null
-      for(let level=0; level<numberOfLevels; ++level) {
-        previousTree = tree as TrieNode<Shape>
-        previousHash = getCurrentLevelHash(hash)
-        tree = (tree as TrieNode<Shape>).arrayOfSubTrees[getCurrentLevelHash(hash)]
-        hash = moveOneLevelDown(hash)
-      }
-      if(previousTree !== null) {
-        previousTree.arrayOfSubTrees[previousHash] = value
-      } else {
-        this.tree = value
+    if(values !== undefined) {
+      for(const [key, value] of Object.entries(values)) {        
+        _putKeyValueIntoTrie(this, key as keyof Shape, value)
       }
     }
   }
 
-  createTrieRecordInstance.prototype = TrieRecordPrototype
+  function _putKeyValueIntoTrie<K extends keyof Shape>(recordInstance: TrieRecordInstance<Shape>, key: K, value: Shape[K]) {
+    let hash = keyHashes[key as keyof Shape]
+    let tree = recordInstance.tree
+    let previousTree: TrieNode<Shape> | null = null
+    let previousHash: number | null = null
+    for(let level=0; level<numberOfLevels; ++level) {
+      previousTree = tree as TrieNode<Shape>
+      previousHash = getCurrentLevelHash(hash)
+      tree = (tree as TrieNode<Shape>).arrayOfSubTrees[getCurrentLevelHash(hash)]
+      hash = moveOneLevelDown(hash)
+    }
+    if(previousTree !== null) {
+      previousTree.arrayOfSubTrees[previousHash] = value
+    } else {
+      recordInstance.tree = value
+    }
+  }
+
+  createTrieRecordInstance.prototype = TrieRecordPrototype;
+  (createTrieRecordInstance as any)._putKeyValueIntoTrie = _putKeyValueIntoTrie;
 
   return createTrieRecordInstance as RecordClass<Shape>
 }
