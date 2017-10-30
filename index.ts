@@ -88,11 +88,19 @@ export function TrieRecord<Shape>(defaultValues: Shape): RecordClass<Shape> {
       let hash = keyHashes[key]
       if(hash === undefined) return undefined
       let tree = this.tree
+      let previousTree: TrieNode<Shape> | null = null
+      let previousHash = null
       for(let level=0; level<numberOfLevels; ++level) {
+        previousTree = tree as TrieNode<Shape>
+        previousHash = getCurrentLevelHash(hash)
         tree = (tree as TrieNode<Shape>).arrayOfSubTrees[getCurrentLevelHash(hash)]
         hash = moveOneLevelDown(hash)
       }
-      return tree as Shape[keyof Shape]
+      if(previousTree === null || previousTree.arrayOfSubTrees.hasOwnProperty(previousHash)) {
+        return tree as Shape[keyof Shape]
+      } else {
+        return defaultValues[key]
+      }
     },
     set<K extends keyof Shape>(this: TrieRecordInstance<Shape>, key: K, value: Shape[K]): RecordInstance<Shape> {
       const newInstance = Object.create(TrieRecordPrototype)
